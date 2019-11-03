@@ -8,7 +8,13 @@ interface Delta {
   dy: number;
 }
 
-export class Rect {
+type RectListener = (rect: Rect) => void;
+
+interface Subscription {
+  unsubscribe(): void;
+}
+
+export class Rect implements ClientRect {
   public top!: number;
   public bottom!: number;
   public left!: number;
@@ -18,34 +24,64 @@ export class Rect {
   public center!: Coord;
   public x!: number;
   public y!: number;
+  public element?: Element;
+  public timestamp!: number;
+  private observers: Set<RectListener> = new Set();
 
-  constructor(clientRect: ClientRect);
-  constructor(element: Element);
   constructor(elementOrRect: Element | ClientRect) {
-    const clientRect =
-      elementOrRect instanceof Element
-        ? elementOrRect.getBoundingClientRect()
-        : elementOrRect;
+    this.update(elementOrRect);
+  }
 
-    const { top, bottom, left, right, width, height } = clientRect;
+  public update(elementOrRect: Element | ClientRect): this {
+    if (elementOrRect !== undefined || this.element !== undefined) {
+      let clientRect: ClientRect;
 
-    const centerX = left + width / 2;
-    const centerY = top + height / 2;
+      if (elementOrRect instanceof Element) {
+        clientRect = elementOrRect.getBoundingClientRect();
+        this.element = elementOrRect;
+      } else if (elementOrRect !== undefined) {
+        clientRect = elementOrRect;
+      } else {
+        clientRect = this.element!.getBoundingClientRect();
+      }
 
-    Object.assign(this, {
-      top,
-      bottom,
-      left,
-      right,
-      width,
-      height,
-      center: {
-        x: centerX,
-        y: centerY,
+      const { top, bottom, left, right, width, height } = clientRect;
+
+      const centerX = left + width / 2;
+      const centerY = top + height / 2;
+
+      Object.assign(this, {
+        top,
+        bottom,
+        left,
+        right,
+        width,
+        height,
+        center: {
+          x: centerX,
+          y: centerY,
+        },
+        x: left,
+        y: top,
+        timestamp: Date.now(),
+      });
+    }
+
+    this.observers.forEach(observer => observer(this));
+
+    return this;
+  }
+
+  public subscribe(observer: RectListener): Subscription {
+    this.observers.add(observer);
+
+    observer(this);
+
+    return {
+      unsubscribe: () => {
+        this.observers.delete(observer);
       },
-      x: left,
-      y: top,
-    });
+    };
   }
 
   public distance(rect: Coord | ClientRect): number {

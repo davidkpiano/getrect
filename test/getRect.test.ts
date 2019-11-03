@@ -81,3 +81,56 @@ describe('rect.delta()', () => {
     });
   });
 });
+
+describe('rect.subscribe()', () => {
+  it('rect should be subscribable', done => {
+    const rect1 = getRect({
+      top: 0,
+      bottom: 10,
+      height: 10,
+      left: 0,
+      right: 10,
+      width: 10,
+    });
+
+    rect1.subscribe(r => {
+      if (r.top === 10) {
+        done();
+      }
+    });
+
+    rect1.update({
+      ...rect1,
+      top: 10,
+    });
+  });
+
+  it('rect should be unsubscribable', done => {
+    const rect1 = getRect({
+      top: 0,
+      bottom: 10,
+      height: 10,
+      left: 0,
+      right: 10,
+      width: 10,
+    });
+
+    let top: number | undefined = undefined;
+
+    const sub = rect1.subscribe(r => {
+      top = r.top;
+    });
+
+    sub.unsubscribe();
+
+    rect1.update({
+      ...rect1,
+      top: 10,
+    });
+
+    setTimeout(() => {
+      expect(top).toBe(0);
+      done();
+    }, 10);
+  });
+});
